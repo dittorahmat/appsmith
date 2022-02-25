@@ -22,7 +22,7 @@ import "codemirror/addon/lint/lint.css";
 import { getDataTreeForAutocomplete } from "selectors/dataTreeSelectors";
 import EvaluatedValuePopup from "components/editorComponents/CodeEditor/EvaluatedValuePopup";
 import { WrappedFieldInputProps } from "redux-form";
-import _, { isString } from "lodash";
+import _, { isNil, isString } from "lodash";
 import {
   DataTree,
   ENTITY_TYPE,
@@ -136,6 +136,18 @@ export type EditorStyleProps = {
   popperZIndex?: Indices;
 };
 
+export type CodeEditorGutter = {
+  line: (editorValue: string) => number | null;
+  element: HTMLElement;
+  gutterId: string;
+};
+
+export type CustomKeyMap = {
+  // combination of keys
+  combination: string;
+  onKeyDown: (cm: CodeMirror.Editor) => void;
+};
+
 export type EditorProps = EditorStyleProps &
   EditorConfig & {
     input: Partial<WrappedFieldInputProps>;
@@ -153,6 +165,10 @@ export type EditorProps = EditorStyleProps &
     handleMouseLeave?: () => void;
     isReadOnly?: boolean;
     isRawView?: boolean;
+    // Custom gutter
+    customGutters?: CodeEditorGutter[];
+    // custom key map
+    customKeyMap?: CustomKeyMap;
   };
 
 type Props = ReduxStateProps &
@@ -221,6 +237,8 @@ class CodeEditor extends Component<Props, State> {
         tabindex: -1,
       };
 
+      const gutters = new Set<string>();
+
       if (!this.props.input.onChange || this.props.disabled) {
         options.readOnly = true;
         options.scrollbarStyle = "null";
@@ -232,7 +250,8 @@ class CodeEditor extends Component<Props, State> {
       }
       if (this.props.folding) {
         options.foldGutter = true;
-        options.gutters = ["CodeMirror-linenumbers", "CodeMirror-foldgutter"];
+        gutters.add("CodeMirror-linenumbers");
+        gutters.add("CodeMirror-foldgutter");
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         options.foldOptions = {
@@ -242,6 +261,22 @@ class CodeEditor extends Component<Props, State> {
         };
       }
 
+      if (this.props.customGutters) {
+        this.props.customGutters.map((gutter) => {
+          gutters.add(gutter.gutterId);
+        });
+      }
+      options.gutters = Array.from(gutters);
+
+      if (this.props.customKeyMap) {
+        options.extraKeys = {
+          ...options.extraKeys,
+          [this.props.customKeyMap.combination]: (cm: CodeMirror.Editor) => {
+            this.props.customKeyMap?.onKeyDown &&
+              this.props.customKeyMap.onKeyDown(cm);
+          },
+        };
+      }
       // Set value of the editor
       const inputValue = getInputValue(this.props.input.value) || "";
       if (this.props.size === EditorSize.COMPACT) {
@@ -262,7 +297,6 @@ class CodeEditor extends Component<Props, State> {
         // which means CodeMirror recalculates itself only one time, once all CodeMirror
         // changes here are completed
         //
-
         editor.on("beforeChange", this.handleBeforeChange);
         editor.on("change", this.startChange);
         editor.on("keyup", this.handleAutocompleteKeyup);
@@ -286,6 +320,7 @@ class CodeEditor extends Component<Props, State> {
         );
 
         this.lintCode(editor);
+        this.handleCustomGutters(editor);
       };
 
       // Finally create the Codemirror editor
@@ -327,6 +362,7 @@ class CodeEditor extends Component<Props, State> {
           );
         }
       }
+      this.handleCustomGutters(this.editor);
     });
   }
 
@@ -412,6 +448,18 @@ class CodeEditor extends Component<Props, State> {
       return helper(editor, dynamicData, additionalDynamicData);
     });
   }
+
+  handleCustomGutters = (editor: CodeMirror.Editor) => {
+    if (!this.props.customGutters || !editor) return;
+    this.props.customGutters.forEach((gutter) => {
+      editor.clearGutter(gutter.gutterId);
+    });
+    this.props.customGutters.forEach((gutter) => {
+      const lineNumber = gutter.line(editor.getValue());
+      if (isNil(lineNumber)) return;
+      editor.setGutterMarker(lineNumber, gutter.gutterId, gutter.element);
+    });
+  };
 
   handleCursorMovement = (cm: CodeMirror.Editor) => {
     // ignore if disabled
