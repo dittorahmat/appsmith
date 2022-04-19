@@ -894,6 +894,11 @@ export function EditorJSONtoForm(props: Props) {
               name={currentActionConfig ? currentActionConfig.name : ""}
               pageId={pageId}
             />
+            <SearchSnippets
+              className="search-snippets"
+              entityId={currentActionConfig?.id}
+              entityType={ENTITY_TYPE.ACTION}
+            />
             <DropdownSelect>
               <DropdownField
                 className={"t--switch-datasource"}
@@ -905,11 +910,6 @@ export function EditorJSONtoForm(props: Props) {
                 width={232}
               />
             </DropdownSelect>
-            <SearchSnippets
-              className="search-snippets"
-              entityId={currentActionConfig?.id}
-              entityType={ENTITY_TYPE.ACTION}
-            />
             <Button
               className="t--run-query"
               data-guided-tour-iid="run-query"
