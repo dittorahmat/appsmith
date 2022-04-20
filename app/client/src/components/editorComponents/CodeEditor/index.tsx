@@ -325,6 +325,7 @@ class CodeEditor extends Component<Props, State> {
 
   componentDidUpdate(prevProps: Props): void {
     this.editor.operation(() => {
+      this.handleCustomGutter(this.editor.getCursor().line);
       if (!this.state.isFocused) {
         // const currentMode = this.editor.getOption("mode");
         const editorValue = this.editor.getValue();
@@ -494,7 +495,8 @@ class CodeEditor extends Component<Props, State> {
     this.handleChange();
     this.setState({ isFocused: false });
     this.editor.setOption("matchBrackets", false);
-    this.handleCustomGutter(null);
+    // this.handleCustomGutter(null);
+    this.handleCustomGutter(this.editor.getCursor().line);
   };
 
   handleBeforeChange = (
